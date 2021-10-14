@@ -1,6 +1,7 @@
 package statsd
 
 import (
+	"fmt"
 	"math/rand"
 	"sync"
 	"time"
@@ -29,6 +30,7 @@ func newWorker(pool *bufferPool, sender *sender) *worker {
 	// source because we just need an evenly distributed stream of float values.
 	// Do not use this random source for cryptographic randomness.
 	random := rand.New(rand.NewSource(time.Now().UnixNano()))
+	fmt.Printf("worker.newWorker:%v\n", random)
 	return &worker{
 		pool:   pool,
 		sender: sender,
@@ -63,8 +65,10 @@ func (w *worker) processMetric(m metric) error {
 		return nil
 	}
 	w.Lock()
+	fmt.Printf("worder.processMetric: %v\n", m)
 	var err error
 	if err = w.writeMetricUnsafe(m); err == errBufferFull {
+		fmt.Printf("worker.processMetric: fluashAndRewrite %v\n", m)
 		w.flushUnsafe()
 		err = w.writeMetricUnsafe(m)
 	}
@@ -144,6 +148,7 @@ func (w *worker) unpause() {
 // flushed buffer written to the network asynchronously.
 func (w *worker) flushUnsafe() {
 	if len(w.buffer.bytes()) > 0 {
+		fmt.Printf("worker.send buffer:%d\n", len(w.buffer.bytes()))
 		w.sender.send(w.buffer)
 		w.buffer = w.pool.borrowBuffer()
 	}
